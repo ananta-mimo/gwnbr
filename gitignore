@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+wheels/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files (keep sample data in docs/ only)
+*.csv
+*.shp
+*.dbf
+*.shx
+*.prj
+*.cpg
+*.geojson
+
+# Model outputs
+results_*.csv
+gwnbr_*_results.csv
+
+# Docs build
+docs/_build/
+docs/site/
+
+# Misc
+*.log
+*.tmp
+.env
+
+example_test/
