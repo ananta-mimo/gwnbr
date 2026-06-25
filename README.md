@@ -63,13 +63,13 @@ pip install -e ".[viz]"
 
 ## Usage
 
-### Step 1 — Prepare your data
+### Step 1 - Prepare your data
 
 ```python
 import numpy as np
 import pandas as pd
 
-df = pd.read_csv("maryland_tracts.csv")
+df = pd.read_csv("maryland_tracts.csv") # Smaple dataset
 
 coords = df[["longitude", "latitude"]].values   # centroid of each tract
 y      = df["total_crashes"].values              # count response
@@ -78,7 +78,7 @@ X      = df[["income", "unemployment",
 offset = np.log(df["population"].values)         # log population
 ```
 
-### Step 2 — Find the optimal bandwidth
+### Step 2 - Find the optimal bandwidth
 
 ```python
 from gwnbr.models import GWNBRg
@@ -94,7 +94,7 @@ selector = BandwidthSelector(
 optimal_bw = selector.search()
 ```
 
-### Step 3 — Fit the model
+### Step 3 - Fit the model
 
 ```python
 model = GWNBRg(
@@ -106,7 +106,7 @@ model.fit(bandwidth=optimal_bw)
 print(model.summary())
 ```
 
-### Step 4 — Export results
+### Step 4 - Export results
 
 ```python
 results = model.to_dataframe()
@@ -114,7 +114,7 @@ results["GEOID"] = df["GEOID"].values
 results.to_csv("gwnbrg_results.csv", index=False)
 ```
 
-### Step 5 — Map the output
+### Step 5 - Map the output
 
 ```python
 import geopandas as gpd
@@ -162,7 +162,7 @@ for ModelClass, name, bw in [
 
 ## Theory and methodology
 
-For the full mathematical derivation — NB-2 log-likelihood, IRLS weight matrices, NR score and Hessian equations, kernel functions, bandwidth selection, and significance testing — see [docs/THEORY.md](docs/THEORY.md).
+For the full mathematical derivation - NB-2 log-likelihood, IRLS weight matrices, NR score and Hessian equations, kernel functions, bandwidth selection, and significance testing - see [docs/THEORY.md](docs/THEORY.md).
 
 ---
 
