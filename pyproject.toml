@@ -9,7 +9,8 @@ description = "Geographically Weighted Negative Binomial Regression in Python"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Ananta Sinha", email = "anantasinha60@gmail.com" }
+    { name = "Sonu Mathew", email = "smathew@kittelson.com" }
 ]
 keywords = [
     "geographically weighted regression",

@@ -69,7 +69,7 @@ pip install -e ".[viz]"
 import numpy as np
 import pandas as pd
 
-df = pd.read_csv("maryland_tracts.csv") # Smaple dataset
+df = pd.read_csv("yourdataset.csv") # Smaple dataset
 
 coords = df[["longitude", "latitude"]].values   # centroid of each tract
 y      = df["total_crashes"].values              # count response

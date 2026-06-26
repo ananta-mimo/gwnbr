@@ -38,7 +38,7 @@ from gwnbr.models.gwnbr import GWNBR
 from gwnbr.models.gwpr import GWPR
 
 __version__ = "0.1.0"
-__author__ = "Your Name"
+__author__ = "Ananta Sinha"
 __license__ = "MIT"
 
 __all__ = ["GWNBR", "GWNBRg", "GWPR"]
