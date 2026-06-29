@@ -1,0 +1,46 @@
+{
+  "title": "gwnbr: Geographically Weighted Negative Binomial Regression in Python",
+  "description": "The first open-source Python implementation of Geographically Weighted Negative Binomial Regression (GWNBR), translated from the SAS macro of Silva and Rodrigues (2014). Includes three model classes (GWNBR, GWNBRg, GWPR) with adaptive k-NN bisquare and Gaussian kernel functions, Golden Section Search bandwidth selection via AICc and cross-validation, local coefficient surfaces, significance testing with multiple-testing correction, and visualisation utilities. Applied to Maryland census tract crash-socioeconomic data.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Sinha, Ananta",
+      "affiliation": "Kittelson and Associates, Inc.",
+      "orcid": "0000-0003-1798-1266"
+    },
+    {
+      "name": "Mathew, Sonu",
+      "affiliation": "Kittelson and Associates, Inc.",
+      "orcid": "0000-0002-0707-8332"
+    }
+  ],
+  "keywords": [
+    "geographically weighted regression",
+    "negative binomial regression",
+    "spatial statistics",
+    "overdispersion",
+    "count data",
+    "transportation safety",
+    "crash frequency",
+    "GWNBR",
+    "GWNBRg",
+    "GWPR",
+    "spatial heterogeneity",
+    "Python"
+  ],
+  "related_identifiers": [
+    {
+      "relation": "isSupplementTo",
+      "identifier": "https://doi.org/10.1007/s11222-013-9401-9",
+      "scheme": "doi",
+      "resource_type": "publication-article"
+    }
+  ],
+  "references": [
+    "Silva, A. R. and Rodrigues, T. C. V. (2014). Geographically Weighted Negative Binomial Regression - Incorporating Overdispersion. Statistics and Computing, 24, 769-783. https://doi.org/10.1007/s11222-013-9445-4",
+    "Nakaya, T., Fotheringham, A. S., Brunsdon, C. and Charlton, M. (2005). Geographically Weighted Poisson Regression for Disease Association Mapping. Statistics in Medicine, 24, 2695-2717.",
+    "Fotheringham, A. S., Brunsdon, C. and Charlton, M. (2002). Geographically Weighted Regression. Wiley."
+  ]
+}

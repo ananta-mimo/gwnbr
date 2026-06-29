@@ -244,8 +244,69 @@ class TestGWNBRg:
 
 
 # -----------------------------------------------------------------------
-# Full GWNBR tests
+# Stationarity Test
 # -----------------------------------------------------------------------
+
+class TestStationarityTest:
+    def test_runs_and_returns_dataframe(self, small_nb_data):
+        import pandas as pd
+        from gwnbr.stationarity import StationarityTest
+        coords, y, X, offset = small_nb_data
+        model = GWNBRg(coords, y, X, offset=offset,
+                       variable_names=["income", "unemploy"])
+        model.fit(bandwidth=200.0, n_jobs=1, verbose=False)
+
+        test = StationarityTest(model, GWNBRg,
+                                n_permutations=9,
+                                n_jobs=1, verbose=False)
+        results = test.run()
+
+        assert isinstance(results, pd.DataFrame)
+        assert len(results) == 3
+        assert "p_value" in results.columns
+        assert "Stationary" in results.columns
+
+    def test_p_values_in_range(self, small_nb_data):
+        from gwnbr.stationarity import StationarityTest
+        coords, y, X, offset = small_nb_data
+        model = GWNBRg(coords, y, X, offset=offset)
+        model.fit(bandwidth=200.0, n_jobs=1, verbose=False)
+
+        test = StationarityTest(model, GWNBRg,
+                                n_permutations=9,
+                                n_jobs=1, verbose=False)
+        results = test.run()
+
+        assert (results["p_value"] >= 0).all()
+        assert (results["p_value"] <= 1).all()
+
+    def test_vk_observed_positive(self, small_nb_data):
+        from gwnbr.stationarity import StationarityTest
+        coords, y, X, offset = small_nb_data
+        model = GWNBRg(coords, y, X, offset=offset)
+        model.fit(bandwidth=200.0, n_jobs=1, verbose=False)
+
+        test = StationarityTest(model, GWNBRg,
+                                n_permutations=9,
+                                n_jobs=1, verbose=False)
+        test.run()
+
+        assert np.all(test.vk_observed >= 0)
+
+    def test_summary_string(self, small_nb_data):
+        from gwnbr.stationarity import StationarityTest
+        coords, y, X, offset = small_nb_data
+        model = GWNBRg(coords, y, X, offset=offset)
+        model.fit(bandwidth=200.0, n_jobs=1, verbose=False)
+
+        test = StationarityTest(model, GWNBRg,
+                                n_permutations=9,
+                                n_jobs=1, verbose=False)
+        test.run()
+        s = test.summary()
+
+        assert "Stationarity" in s
+        assert "p=" in s or "p_value" in s
 
 class TestGWNBR:
     def test_fit_completes(self, small_nb_data):
