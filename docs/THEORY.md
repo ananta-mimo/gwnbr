@@ -403,20 +403,20 @@ locally significant if its p-value < alpha_adj.
 ## 12. References
 
 Cameron, A. C. and Windmeijer, F. A. G. (1996). R-Squared Measures for
-Count Data Regression Models with Applications to Health-Care Utilization.
-*Journal of Business and Economic Statistics*, 14(2), 209–220.
+      Count Data Regression Models with Applications to Health-Care Utilization.
+      *Journal of Business and Economic Statistics*, 14(2), 209–220.
 
 Fotheringham, A. S., Brunsdon, C. and Charlton, M. (2002).
-*Geographically Weighted Regression*. Wiley.
+      *Geographically Weighted Regression*. Wiley.
 
 Nakaya, T., Fotheringham, A. S., Brunsdon, C. and Charlton, M. (2005).
-Geographically Weighted Poisson Regression for Disease Association Mapping.
-*Statistics in Medicine*, 24, 2695–2717.
+      Geographically Weighted Poisson Regression for Disease Association Mapping.
+      *Statistics in Medicine*, 24, 2695–2717.
 
 Silva, A. R. and Rodrigues, T. C. V. (2014). Geographically Weighted
-Negative Binomial Regression — Incorporating Overdispersion.
-*Statistics and Computing*, 24, 769–783.
+      Negative Binomial Regression — Incorporating Overdispersion.
+      *Statistics and Computing*, 24, 769–783.
 
 Silva, A. R. and Fotheringham, A. S. (2015). The Multiple Testing Issue
-in Geographically Weighted Regression.
-*Geographical Analysis*, 47(2), 118–136.
+      in Geographically Weighted Regression.
+      *Geographical Analysis*, 47(2), 118–136.
