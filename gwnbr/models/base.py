@@ -160,6 +160,54 @@ class GWRBase(ABC):
         lines.append("=" * 62)
         return "\n".join(lines)
 
+    def loo_cv(self) -> float:
+        """
+        Compute Leave-One-Out Cross-Validation score via hat matrix
+        diagonal shortcut (Fotheringham et al., 2002).
+
+        For each observation i, the LOO predicted value is approximated
+        as:
+
+            y_hat_LOO[i] = y_hat[i] / (1 - h_ii)
+
+        where h_ii = S[i,i] is the diagonal of the hat matrix S,
+        computed during model fitting. This avoids n model refits while
+        accounting for the self-influence of each observation.
+
+        LOO-CV = sum_i (y_i - y_hat_LOO[i])^2
+
+        Use this to compare bandwidth choices for full GWNBR, where
+        AICc is not directly applicable due to the unknown effective
+        parameter count from the local alpha surface.
+
+        Returns
+        -------
+        float   LOO-CV sum of squared prediction errors.
+                Lower is better.
+
+        Raises
+        ------
+        RuntimeError  If model has not been fitted.
+
+        Notes
+        -----
+        h_ii values close to 1.0 (high-leverage tracts) are clamped
+        at 0.999 to prevent numerical instability. These typically
+        occur at isolated tracts with few neighbours.
+
+        References
+        ----------
+        Fotheringham, Brunsdon & Charlton (2002). Geographically
+            Weighted Regression. Wiley. Section 2.5.
+        """
+        if not self._fitted:
+            raise RuntimeError("Call fit() first.")
+
+        hat_diag = np.diag(self.hat_matrix)
+        h = np.clip(hat_diag, 0.0, 0.999)
+        y_hat_loo = self.y_hat / (1.0 - h)
+        return float(np.sum((self.y - y_hat_loo) ** 2))
+
     def coefficient_summary(self) -> pd.DataFrame:
         """
         Return a DataFrame of local coefficient distribution statistics.
@@ -196,34 +244,48 @@ class GWRBase(ABC):
 
     def local_r2(self) -> np.ndarray:
         """
-        Local pseudo-R2 per tract.
+        Compute a local pseudo-R2 for each spatial unit.
 
-        Uses the proportion of fitted value deviation from global mean,
-        which is more numerically stable than single-observation deviance.
+        Each tract's pseudo-R2 is the deviance-based R2 comparing
+        the fitted value at that tract against the global mean:
 
-            r2_i = 1 - (y_i - yhat_i)^2 / (y_i - mean(y))^2
+            r2_i = 1 - D(y_i, yhat_i) / D(y_i, mu_null)
 
-        This is analogous to local R2 in standard GWR (Fotheringham et al. 2002)
-        and avoids numerical instability from single-point NB deviance.
+        where D is the NB-2 deviance contribution and mu_null is
+        the global mean of y (intercept-only reference).
+
+        Returns
+        -------
+        np.ndarray, shape (n,)
+            Local pseudo-R2 values. Range is typically [-inf, 1].
+            Negative values indicate the model fits worse than the
+            null at that location.
+
+        Notes
+        -----
+        Min, mean, and max of local R2 are useful diagnostics:
+        - Mean local R2 should be close to global pct_deviance.
+        - Large spread (min << max) confirms spatial heterogeneity.
+        - Many negative values suggest bandwidth may be too small.
         """
         if not self._fitted:
             raise RuntimeError("Call fit() first.")
 
         mu_null  = float(np.mean(self.y))
-        residuals = self.y - self.y_hat
-        null_dev  = self.y - mu_null
+        alphas   = np.atleast_1d(self.alphas)
+        r2_local = np.zeros(self.n)
 
-        # Avoid division by zero for tracts where y_i == mean(y)
-        denom = null_dev ** 2
-        denom = np.where(denom < 1e-10, np.nan, denom)
+        for i in range(self.n):
+            y_i     = np.array([self.y[i]])
+            yhat_i  = np.array([self.y_hat[i]])
+            mu_n    = np.array([mu_null])
+            alpha_i = float(alphas[0] if len(alphas) == 1 else alphas[i])
 
-        r2_local = 1.0 - (residuals ** 2) / denom
+            d_model = _nb_deviance(y_i, yhat_i, alpha_i)
+            d_null  = _nb_deviance(y_i, mu_n,   alpha_i)
 
-        # Clip to [-1, 1] — extreme values indicate outlier tracts
-        r2_local = np.clip(r2_local, -1.0, 1.0)
-
-        # Replace nan (tracts at exact mean) with 0
-        r2_local = np.where(np.isnan(r2_local), 0.0, r2_local)
+            r2_local[i] = (1.0 - d_model / d_null
+                           if abs(d_null) > 1e-10 else 0.0)
 
         return r2_local
 

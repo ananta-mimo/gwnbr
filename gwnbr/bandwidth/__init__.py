@@ -6,12 +6,25 @@ Bandwidth selection for GW count regression models.
 Implements the Golden Section Search algorithm from the SAS %golden
 macro of Silva & Rodrigues (2014), translated to Python.
 
-Supports three selection criteria:
-- 'aicc' : Corrected AIC (recommended for GWNBRg)
-- 'cv'   : Cross-validation sum of squared prediction errors
-- 'aic'  : Standard AIC
+Supports four selection criteria:
+- 'aicc'   : Corrected AIC (recommended for GWNBRg)
+- 'loo_cv' : LOO-CV via hat matrix diagonal shortcut (recommended for GWNBR)
+- 'cv'     : Naive CV — sum of squared residuals (approximation)
+- 'aic'    : Standard AIC
 
-And three bandwidth types:
+LOO-CV via hat matrix shortcut
+-------------------------------
+For GLM-based GWR models, true LOO-CV (refitting n times) is
+computationally prohibitive. The hat matrix diagonal h_ii = S[i,i]
+provides an approximation (Fotheringham et al., 2002):
+
+    y_hat_LOO[i] ≈ y_hat[i] / (1 - h_ii)
+    LOO-CV = sum_i (y_i - y_hat_LOO[i])^2
+
+This avoids n model refits while substantially improving on naive CV
+by accounting for the leverage of each observation on its own fit.
+
+Three bandwidth types:
 - 'fixed'       : Fixed distance bandwidth (km or map units)
 - 'adaptive_nn' : Adaptive k-nearest-neighbour bandwidth (integer k)
 - 'bisquare'    : Fixed bisquare bandwidth
@@ -24,7 +37,39 @@ Fotheringham, Brunsdon & Charlton (2002). GWR. Wiley.
 
 from __future__ import annotations
 import numpy as np
-from typing import Callable
+
+
+def hat_matrix_loo_cv(y: np.ndarray,
+                      y_hat: np.ndarray,
+                      hat_diag: np.ndarray) -> float:
+    """
+    Compute LOO-CV score using the hat matrix diagonal shortcut.
+
+    For GWR-based GLMs, the leave-one-out predicted value is
+    approximated as (Fotheringham et al., 2002):
+
+        y_hat_LOO[i] = y_hat[i] / (1 - h_ii)
+
+    where h_ii = S[i,i] is the diagonal of the hat matrix S.
+
+    Parameters
+    ----------
+    y        : np.ndarray, shape (n,)   Observed counts.
+    y_hat    : np.ndarray, shape (n,)   Fitted values from full model.
+    hat_diag : np.ndarray, shape (n,)   Diagonal of hat matrix S[i,i].
+
+    Returns
+    -------
+    float   LOO-CV sum of squared prediction errors.
+
+    Notes
+    -----
+    h_ii values close to 1.0 are clamped at 0.999 to avoid
+    division by near-zero denominators.
+    """
+    h = np.clip(hat_diag, 0.0, 0.999)
+    y_hat_loo = y_hat / (1.0 - h)
+    return float(np.sum((y - y_hat_loo) ** 2))
 
 
 class BandwidthSelector:
@@ -36,28 +81,38 @@ class BandwidthSelector:
 
     Parameters
     ----------
-    model_class  : class   One of GWNBRg, GWNBR, or GWPR.
-    coords       : np.ndarray, shape (n, 2)
-    y            : np.ndarray, shape (n,)
-    X            : np.ndarray, shape (n, p)
-    offset       : np.ndarray or None
+    model_class    : class   One of GWNBRg, GWNBR, or GWPR.
+    coords         : np.ndarray, shape (n, 2)
+    y              : np.ndarray, shape (n,)
+    X              : np.ndarray, shape (n, p)
+    offset         : np.ndarray or None
     variable_names : list or None
-    kernel       : str   'gaussian', 'bisquare', or 'adaptive_nn'.
-    criterion    : str   'aicc' (default for GWNBRg), 'cv', or 'aic'.
-    bw_min       : float or None  Lower bound for search. Auto if None.
-    bw_max       : float or None  Upper bound for search. Auto if None.
-    n_jobs       : int   Parallel jobs for model fitting.
-    verbose      : bool
+    kernel         : str   'gaussian', 'bisquare', or 'adaptive_nn'.
+    criterion      : str
+        'aicc'   — Corrected AIC (recommended for GWNBRg, GWPR).
+        'loo_cv' — LOO-CV via hat matrix shortcut (recommended for GWNBR).
+        'cv'     — Naive CV: sum((y - y_hat)^2). Faster but less rigorous.
+        'aic'    — Standard AIC.
+    bw_min         : float or None  Lower bound for search. Auto if None.
+    bw_max         : float or None  Upper bound for search. Auto if None.
+    n_jobs         : int   Parallel jobs for model fitting.
+    verbose        : bool
 
     Example
     -------
+    >>> # GWNBRg with AICc (recommended)
     >>> selector = BandwidthSelector(
     ...     GWNBRg, coords, y, X, offset=np.log(pop),
-    ...     kernel='gaussian', criterion='aicc'
+    ...     kernel='adaptive_nn', criterion='aicc'
     ... )
     >>> optimal_bw = selector.search()
-    >>> model = GWNBRg(coords, y, X, offset=np.log(pop))
-    >>> model.fit(bandwidth=optimal_bw)
+
+    >>> # Full GWNBR with LOO-CV (recommended for GWNBR)
+    >>> selector = BandwidthSelector(
+    ...     GWNBR, coords, y, X, offset=np.log(pop),
+    ...     kernel='adaptive_nn', criterion='loo_cv'
+    ... )
+    >>> optimal_bw = selector.search()
     """
 
     def __init__(self,
@@ -74,16 +129,23 @@ class BandwidthSelector:
                  n_jobs: int = -1,
                  verbose: bool = True):
 
-        self.model_class = model_class
-        self.coords = np.asarray(coords, dtype=float)
-        self.y = np.asarray(y, dtype=float)
-        self.X = np.asarray(X, dtype=float)
-        self.offset = offset
+        self.model_class    = model_class
+        self.coords         = np.asarray(coords, dtype=float)
+        self.y              = np.asarray(y, dtype=float)
+        self.X              = np.asarray(X, dtype=float)
+        self.offset         = offset
         self.variable_names = variable_names
-        self.kernel = kernel
-        self.criterion = criterion.lower()
-        self.n_jobs = n_jobs
-        self.verbose = verbose
+        self.kernel         = kernel
+        self.criterion      = criterion.lower()
+        self.n_jobs         = n_jobs
+        self.verbose        = verbose
+
+        _valid = {"aicc", "aic", "cv", "loo_cv"}
+        if self.criterion not in _valid:
+            raise ValueError(
+                f"Unknown criterion '{criterion}'. "
+                f"Choose from: {sorted(_valid)}"
+            )
 
         # Auto-set bounds
         from gwnbr.utils.distance import pairwise_distances
@@ -92,17 +154,17 @@ class BandwidthSelector:
         n = len(y)
 
         if kernel == "adaptive_nn":
-            self._bw_min = float(bw_min) if bw_min is not None else 5.0
-            self._bw_max = float(bw_max) if bw_max is not None else float(n)
-            self._tol = 0.9
+            self._bw_min     = float(bw_min) if bw_min is not None else 5.0
+            self._bw_max     = float(bw_max) if bw_max is not None else float(n)
+            self._tol        = 0.9
             self._integer_bw = True
         else:
-            self._bw_min = float(bw_min) if bw_min is not None else 0.0
-            self._bw_max = float(bw_max) if bw_max is not None else self._max_dist
-            self._tol = 0.1
+            self._bw_min     = float(bw_min) if bw_min is not None else 0.0
+            self._bw_max     = float(bw_max) if bw_max is not None else self._max_dist
+            self._tol        = 0.1
             self._integer_bw = False
 
-        self._history = []   # list of (bandwidth, criterion_value)
+        self._history          = []
         self.optimal_bandwidth = None
 
     def _evaluate(self, bandwidth: float) -> float:
@@ -124,9 +186,11 @@ class BandwidthSelector:
             val = model.AIC
         elif self.criterion == "cv":
             val = float(np.sum((self.y - model.y_hat) ** 2))
+        elif self.criterion == "loo_cv":
+            hat_diag = np.diag(model.hat_matrix)
+            val = hat_matrix_loo_cv(self.y, model.y_hat, hat_diag)
         else:
-            raise ValueError(f"Unknown criterion '{self.criterion}'. "
-                             "Use 'aicc', 'aic', or 'cv'.")
+            raise ValueError(f"Unknown criterion '{self.criterion}'.")
 
         self._history.append((bandwidth, val))
         if self.verbose:
@@ -137,15 +201,16 @@ class BandwidthSelector:
         """
         Run the Golden Section Search and return the optimal bandwidth.
 
-        The search is translated directly from the %golden SAS macro,
-        including the integer-snapping step for adaptive_nn kernels.
+        Translated directly from the %golden SAS macro of Silva &
+        Rodrigues (2014), including the integer-snapping step for
+        adaptive_nn kernels.
 
         Returns
         -------
         float  Optimal bandwidth.
         """
         GOLDEN_RATIO = 0.61803399
-        C = 1.0 - GOLDEN_RATIO
+        C            = 1.0 - GOLDEN_RATIO
 
         h0 = self._bw_min
         h3 = self._bw_max
@@ -165,15 +230,15 @@ class BandwidthSelector:
         while abs(h3 - h0) > self._tol * 2:
             n_iter += 1
             if res2 < res1:
-                h0 = h1
-                h1 = h2
-                h2 = C * h1 + GOLDEN_RATIO * h3
+                h0   = h1
+                h1   = h2
+                h2   = C * h1 + GOLDEN_RATIO * h3
                 res1 = res2
                 res2 = self._evaluate(h2)
             else:
-                h3 = h2
-                h2 = h1
-                h1 = C * h2 + GOLDEN_RATIO * h0
+                h3   = h2
+                h2   = h1
+                h1   = C * h2 + GOLDEN_RATIO * h0
                 res2 = res1
                 res1 = self._evaluate(h1)
 
@@ -184,11 +249,11 @@ class BandwidthSelector:
 
         # Final bandwidth
         if self._integer_bw:
-            xmin = (h3 + h0) / 2.0
-            h_lo = int(np.floor(xmin))
-            h_hi = int(np.ceil(xmin))
-            v_lo = self._evaluate(float(h_lo))
-            v_hi = self._evaluate(float(h_hi))
+            xmin  = (h3 + h0) / 2.0
+            h_lo  = int(np.floor(xmin))
+            h_hi  = int(np.ceil(xmin))
+            v_lo  = self._evaluate(float(h_lo))
+            v_hi  = self._evaluate(float(h_hi))
             optimal = h_lo if v_lo <= v_hi else h_hi
         else:
             optimal = (h3 + h0) / 2.0

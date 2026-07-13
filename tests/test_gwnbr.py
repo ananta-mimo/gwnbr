@@ -116,7 +116,7 @@ class TestKernels:
 
 
 # -----------------------------------------------------------------------
-# Newton Raphson solver tests
+# NR solver tests
 # -----------------------------------------------------------------------
 
 class TestNRSolver:
@@ -307,6 +307,71 @@ class TestStationarityTest:
 
         assert "Stationarity" in s
         assert "p=" in s or "p_value" in s
+
+# -----------------------------------------------------------------------
+# LOO-CV tests
+# -----------------------------------------------------------------------
+
+class TestLOOCV:
+    def test_loo_cv_returns_float(self, small_nb_data):
+        """loo_cv() returns a finite positive float."""
+        coords, y, X, offset = small_nb_data
+        model = GWNBRg(coords, y, X, offset=offset)
+        model.fit(bandwidth=200.0, n_jobs=1, verbose=False)
+        val = model.loo_cv()
+        assert isinstance(val, float)
+        assert np.isfinite(val)
+        assert val > 0
+
+    def test_loo_cv_greater_than_naive_cv(self, small_nb_data):
+        """LOO-CV corrects for self-influence, producing higher errors than naive CV."""
+        coords, y, X, offset = small_nb_data
+        model = GWNBRg(coords, y, X, offset=offset)
+        model.fit(bandwidth=200.0, n_jobs=1, verbose=False)
+        naive_cv = float(np.sum((model.y - model.y_hat) ** 2))
+        loo = model.loo_cv()
+        assert loo >= naive_cv
+
+    def test_hat_matrix_loo_cv_function(self, small_nb_data):
+        """hat_matrix_loo_cv() standalone matches model.loo_cv()."""
+        from gwnbr.bandwidth import hat_matrix_loo_cv
+        coords, y, X, offset = small_nb_data
+        model = GWNBRg(coords, y, X, offset=offset)
+        model.fit(bandwidth=200.0, n_jobs=1, verbose=False)
+        hat_diag   = np.diag(model.hat_matrix)
+        val_fn     = hat_matrix_loo_cv(model.y, model.y_hat, hat_diag)
+        val_method = model.loo_cv()
+        assert abs(val_fn - val_method) < 1e-8
+
+    def test_bandwidth_selector_loo_cv_criterion(self, small_nb_data):
+        """BandwidthSelector accepts criterion='loo_cv' without error."""
+        from gwnbr.bandwidth import BandwidthSelector
+        coords, y, X, offset = small_nb_data
+        selector = BandwidthSelector(
+            GWNBRg, coords, y, X,
+            offset=offset,
+            kernel="gaussian",
+            criterion="loo_cv",
+            bw_min=10.0,
+            bw_max=500.0,
+            n_jobs=1,
+            verbose=False,
+        )
+        bw = selector.search()
+        assert bw > 0
+        assert np.isfinite(bw)
+
+    def test_invalid_criterion_raises(self, small_nb_data):
+        """BandwidthSelector raises ValueError for unknown criterion."""
+        from gwnbr.bandwidth import BandwidthSelector
+        coords, y, X, offset = small_nb_data
+        with pytest.raises(ValueError, match="Unknown criterion"):
+            BandwidthSelector(
+                GWNBRg, coords, y, X,
+                offset=offset,
+                criterion="invalid_criterion",
+            )
+
 
 class TestGWNBR:
     def test_fit_completes(self, small_nb_data):
