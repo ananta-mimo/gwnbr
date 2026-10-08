@@ -1,7 +1,7 @@
 """
 gwnbr.utils
 -----------
-Internal utilities for distance calculation, NR and IRLS solvers.
+Utilities for distance calculation, NR and IRLS solvers.
 """
 
 from gwnbr.utils.distance import pairwise_distances, haversine_distances, euclidean_distances
